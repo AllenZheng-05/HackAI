@@ -62,19 +62,22 @@ def train_csv():
         random_state=42
     )
 
+    # Extract model parameters from request with defaults
+    model_params = {
+        'n_estimators': int(request.form.get('n_estimators', 300)),
+        'max_depth': int(request.form.get('max_depth', 20)) if request.form.get('max_depth') else None,
+        'min_samples_split': int(request.form.get('min_samples_split', 2)),
+        'min_samples_leaf': int(request.form.get('min_samples_leaf', 1)),
+        'random_state': 42
+    }
+
     if mode == "Classification":
 
-        model = RandomForestClassifier(
-            n_estimators=300,
-            random_state=42
-        )
+        model = RandomForestClassifier(**model_params)
 
     else:
 
-        model = RandomForestRegressor(
-            n_estimators=300,
-            random_state=42
-        )
+        model = RandomForestRegressor(**model_params)
 
     model.fit(X_train, y_train)
 
@@ -167,10 +170,16 @@ def train_images():
 
     X_features = np.array(X_features)
 
-    model = RandomForestClassifier(
-        n_estimators=300,
-        random_state=42
-    )
+    # Extract model parameters from request with defaults
+    model_params = {
+        'n_estimators': int(request.form.get('n_estimators', 300)),
+        'max_depth': int(request.form.get('max_depth', 20)) if request.form.get('max_depth') else None,
+        'min_samples_split': int(request.form.get('min_samples_split', 2)),
+        'min_samples_leaf': int(request.form.get('min_samples_leaf', 1)),
+        'random_state': 42
+    }
+
+    model = RandomForestClassifier(**model_params)
 
     model.fit(X_features, y_labels)
 
