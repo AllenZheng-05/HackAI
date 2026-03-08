@@ -3,6 +3,7 @@ import io
 import zipfile
 import pandas as pd
 import numpy as np
+import pickle
 
 from flask import Flask, render_template, request, jsonify
 from flask_cors import CORS
@@ -346,6 +347,42 @@ def model_info():
             "classes": store["classes"],
             "feature_extractor": "MobileNetV2"
         })
+
+
+# ============================================
+# EXPORT MODEL
+# ============================================
+
+@app.route('/export_model')
+def export_model():
+
+    if not store["model"]:
+        return jsonify({"error": "No model trained"}), 400
+
+    # Prepare model data for export
+    model_data = {
+        "model": store["model"],
+        "data_type": store["data_type"],
+        "mode": store["mode"],
+        "classes": store["classes"] if store["data_type"] == "image" else [],
+        "feature_names": store["feature_names"] if store["data_type"] == "csv" else [],
+        "train_cols": store["train_cols"] if store["data_type"] == "csv" else []
+    }
+
+    # Include image extractor for image models
+    if store["data_type"] == "image":
+        model_data["image_extractor"] = store["image_extractor"]
+
+    # Serialize the model data using pickle
+    model_bytes = pickle.dumps(model_data)
+
+    # Set filename based on data type
+    filename = f"trained_model_{store['data_type']}.pkl"
+
+    return model_bytes, 200, {
+        'Content-Type': 'application/octet-stream',
+        'Content-Disposition': f'attachment; filename={filename}'
+    }
 
 
 # ============================================
