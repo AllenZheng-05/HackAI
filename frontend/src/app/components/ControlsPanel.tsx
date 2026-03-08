@@ -56,6 +56,7 @@ export function ControlsPanel({
   const [predictionError, setPredictionError] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [isDemoing, setIsDemoing] = useState(false);
+  const [showDemoPopup, setShowDemoPopup] = useState(false);
 
   // CSV form state - dynamic based on features
   const [formData, setFormData] = useState<Record<string, string>>({});
@@ -191,7 +192,12 @@ export function ControlsPanel({
     }
   };
 
-  const handleDemo = async () => {
+  const handleDemo = () => {
+    setShowDemoPopup(true);
+  };
+
+  const handleDemoConfirm = async () => {
+    setShowDemoPopup(false);
     setIsDemoing(true);
     // Placeholder: wire up your actual demo logic here
     await new Promise((r) => setTimeout(r, 800));
@@ -220,6 +226,52 @@ export function ControlsPanel({
 
   return (
     <div className="h-full flex flex-col gap-4 overflow-y-auto">
+      {/* Demo Confirmation Popup */}
+      {showDemoPopup && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="relative w-80 p-4 rounded-xl bg-[#1a1a2e] border border-white/20 shadow-2xl">
+            {/* Close X button */}
+            <button
+              onClick={() => setShowDemoPopup(false)}
+              className="absolute top-2 right-2 p-1 rounded-lg hover:bg-white/10 transition-colors"
+            >
+              <svg
+                className="w-5 h-5 text-gray-400"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
+            </button>
+
+            {/* Content */}
+            <p className="text-white text-sm mt-2 mb-6 pr-6">
+              This will create a GitHub repository and redirect you to GitHub
+            </p>
+
+            {/* Confirm button */}
+            <div className="flex justify-end">
+              <button
+                onClick={handleDemoConfirm}
+                className={`px-4 py-2 rounded-lg font-bold text-sm transition-all ${
+                  isCSVMode
+                    ? "bg-[#39FF14] hover:bg-[#39FF14]/90 text-black shadow-[0_0_15px_rgba(57,255,20,0.3)]"
+                    : "bg-[#00F0FF] hover:bg-[#00F0FF]/90 text-black shadow-[0_0_15px_rgba(0,240,255,0.3)]"
+                }`}
+              >
+                Confirm
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Model Info Card */}
       <div className="p-4 rounded-xl bg-white/5 backdrop-blur-sm border border-white/10">
         <h3 className="text-xs font-semibold text-gray-400 mb-3 uppercase">
