@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Upload, Info, Loader2, AlertCircle, ImageIcon } from "lucide-react";
+import { Upload, Info, Loader2, AlertCircle, ImageIcon, Download, FlaskConical } from "lucide-react";
 import { predictCSV, predictImage } from "../services/api";
 import { ModelState } from "../App";
 
@@ -23,6 +23,8 @@ export function PredictionPanel({ mode, modelState }: PredictionPanelProps) {
     useState<PredictionResult | null>(null);
   const [isPredicting, setIsPredicting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
+  const [isDemoing, setIsDemoing] = useState(false);
 
   // CSV form state - dynamic based on features
   const [formData, setFormData] = useState<Record<string, string>>({});
@@ -123,9 +125,51 @@ export function PredictionPanel({ mode, modelState }: PredictionPanelProps) {
     }
   };
 
+  const handleExportModel = async () => {
+    setIsExporting(true);
+    setError(null);
+    try {
+      const response = await fetch("http://localhost:5000/export_model");
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || "Export failed");
+      }
+      const blob = await response.blob();
+      const disposition = response.headers.get("Content-Disposition") ?? "";
+      const filename =
+        disposition.match(/filename=([^\s;]+)/)?.[1] ??
+        `trained_model_${modelState.dataType}.pkl`;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Export failed");
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleDemo = async () => {
+    setIsDemoing(true);
+    // Placeholder: wire up your actual demo logic here
+    await new Promise((r) => setTimeout(r, 800));
+    setIsDemoing(false);
+  };
+
   const isCSVMode = mode === "tabular";
   const canPredict =
     isTrained && (isCSVMode ? dataType === "csv" : dataType === "image");
+
+  const accentColor = isCSVMode ? "#39FF14" : "#00F0FF";
+  const accentShadow = isCSVMode
+    ? "rgba(57,255,20,0.5)"
+    : "rgba(0,240,255,0.5)";
+  const accentShadowHover = isCSVMode
+    ? "rgba(57,255,20,0.7)"
+    : "rgba(0,240,255,0.7)";
 
   return (
     <div className="w-full p-6 rounded-xl bg-white/5 backdrop-blur-sm border border-white/10">
@@ -183,21 +227,67 @@ export function PredictionPanel({ mode, modelState }: PredictionPanelProps) {
             </p>
           )}
 
-          {/* Predict Button */}
-          <button
-            onClick={handlePredictCSV}
-            disabled={!canPredict || isPredicting}
-            className="px-8 py-3 rounded-xl bg-[#39FF14] hover:bg-[#39FF14]/90 text-black font-bold shadow-[0_0_30px_rgba(57,255,20,0.5)] hover:shadow-[0_0_40px_rgba(57,255,20,0.7)] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-          >
-            {isPredicting ? (
-              <>
-                <Loader2 className="w-5 h-5 animate-spin" />
-                PREDICTING...
-              </>
-            ) : (
-              "PREDICT"
+          {/* Action Buttons */}
+          <div className="flex items-center gap-3 flex-wrap">
+            {/* PREDICT */}
+            <button
+              onClick={handlePredictCSV}
+              disabled={!canPredict || isPredicting}
+              className="px-8 py-3 rounded-xl bg-[#39FF14] hover:bg-[#39FF14]/90 text-black font-bold shadow-[0_0_30px_rgba(57,255,20,0.5)] hover:shadow-[0_0_40px_rgba(57,255,20,0.7)] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            >
+              {isPredicting ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  PREDICTING...
+                </>
+              ) : (
+                "PREDICT"
+              )}
+            </button>
+
+            {/* EXPORT MODEL — appears after result */}
+            {predictionResult && (
+              <button
+                onClick={handleExportModel}
+                disabled={isExporting}
+                className="px-6 py-3 rounded-xl font-bold text-sm tracking-widest transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 border border-[#39FF14]/40 text-[#39FF14] bg-[#39FF14]/10 hover:bg-[#39FF14]/20 hover:border-[#39FF14]/70 hover:shadow-[0_0_20px_rgba(57,255,20,0.25)]"
+                style={{ animationDuration: "0.3s" }}
+              >
+                {isExporting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    EXPORTING...
+                  </>
+                ) : (
+                  <>
+                    <Download className="w-4 h-4" />
+                    EXPORT MODEL
+                  </>
+                )}
+              </button>
             )}
-          </button>
+
+            {/* DEMO — appears after result */}
+            {predictionResult && (
+              <button
+                onClick={handleDemo}
+                disabled={isDemoing}
+                className="px-6 py-3 rounded-xl font-bold text-sm tracking-widest transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 border border-white/20 text-gray-300 bg-white/5 hover:bg-white/10 hover:border-white/40 hover:text-white hover:shadow-[0_0_20px_rgba(255,255,255,0.08)]"
+              >
+                {isDemoing ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    LOADING...
+                  </>
+                ) : (
+                  <>
+                    <FlaskConical className="w-4 h-4" />
+                    DEMO
+                  </>
+                )}
+              </button>
+            )}
+          </div>
         </>
       ) : (
         <>
@@ -252,21 +342,66 @@ export function PredictionPanel({ mode, modelState }: PredictionPanelProps) {
             </p>
           )}
 
-          {/* Predict Button */}
-          <button
-            onClick={handlePredictImage}
-            disabled={!canPredict || isPredicting || !imageFile}
-            className="px-8 py-3 rounded-xl bg-[#00F0FF] hover:bg-[#00F0FF]/90 text-black font-bold shadow-[0_0_30px_rgba(0,240,255,0.5)] hover:shadow-[0_0_40px_rgba(0,240,255,0.7)] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-          >
-            {isPredicting ? (
-              <>
-                <Loader2 className="w-5 h-5 animate-spin" />
-                PREDICTING...
-              </>
-            ) : (
-              "PREDICT"
+          {/* Action Buttons */}
+          <div className="flex items-center gap-3 flex-wrap">
+            {/* PREDICT */}
+            <button
+              onClick={handlePredictImage}
+              disabled={!canPredict || isPredicting || !imageFile}
+              className="px-8 py-3 rounded-xl bg-[#00F0FF] hover:bg-[#00F0FF]/90 text-black font-bold shadow-[0_0_30px_rgba(0,240,255,0.5)] hover:shadow-[0_0_40px_rgba(0,240,255,0.7)] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            >
+              {isPredicting ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  PREDICTING...
+                </>
+              ) : (
+                "PREDICT"
+              )}
+            </button>
+
+            {/* EXPORT MODEL — appears after result */}
+            {predictionResult && (
+              <button
+                onClick={handleExportModel}
+                disabled={isExporting}
+                className="px-6 py-3 rounded-xl font-bold text-sm tracking-widest transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 border border-[#00F0FF]/40 text-[#00F0FF] bg-[#00F0FF]/10 hover:bg-[#00F0FF]/20 hover:border-[#00F0FF]/70 hover:shadow-[0_0_20px_rgba(0,240,255,0.25)]"
+              >
+                {isExporting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    EXPORTING...
+                  </>
+                ) : (
+                  <>
+                    <Download className="w-4 h-4" />
+                    EXPORT MODEL
+                  </>
+                )}
+              </button>
             )}
-          </button>
+
+            {/* DEMO — appears after result */}
+            {predictionResult && (
+              <button
+                onClick={handleDemo}
+                disabled={isDemoing}
+                className="px-6 py-3 rounded-xl font-bold text-sm tracking-widest transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 border border-white/20 text-gray-300 bg-white/5 hover:bg-white/10 hover:border-white/40 hover:text-white hover:shadow-[0_0_20px_rgba(255,255,255,0.08)]"
+              >
+                {isDemoing ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    LOADING...
+                  </>
+                ) : (
+                  <>
+                    <FlaskConical className="w-4 h-4" />
+                    DEMO
+                  </>
+                )}
+              </button>
+            )}
+          </div>
         </>
       )}
 
