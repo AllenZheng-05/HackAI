@@ -6,6 +6,8 @@ import {
   Upload,
   Info,
   ImageIcon,
+  Download,
+  FlaskConical,
 } from "lucide-react";
 import { ModelState } from "../App";
 import { predictCSV, predictImage } from "../services/api";
@@ -52,6 +54,8 @@ export function ControlsPanel({
     useState<PredictionResult | null>(null);
   const [isPredicting, setIsPredicting] = useState(false);
   const [predictionError, setPredictionError] = useState<string | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
+  const [isDemoing, setIsDemoing] = useState(false);
 
   // CSV form state - dynamic based on features
   const [formData, setFormData] = useState<Record<string, string>>({});
@@ -159,6 +163,40 @@ export function ControlsPanel({
   const isCSVMode = trainingMode === "tabular";
   const canPredict =
     isTrained && (isCSVMode ? dataType === "csv" : dataType === "image");
+
+  const handleExportModel = async () => {
+    setIsExporting(true);
+    setPredictionError(null);
+    try {
+      const response = await fetch("http://localhost:5000/export_model");
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || "Export failed");
+      }
+      const blob = await response.blob();
+      const disposition = response.headers.get("Content-Disposition") ?? "";
+      const filename =
+        disposition.match(/filename=([^\s;]+)/)?.[1] ??
+        `trained_model_${dataType}.pkl`;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setPredictionError(err instanceof Error ? err.message : "Export failed");
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleDemo = async () => {
+    setIsDemoing(true);
+    // Placeholder: wire up your actual demo logic here
+    await new Promise((r) => setTimeout(r, 800));
+    setIsDemoing(false);
+  };
 
   // Process feature importance data - take top 6 and normalize
   const processedFeatures =
@@ -439,6 +477,46 @@ export function ControlsPanel({
                 "PREDICT"
               )}
             </button>
+
+            {/* Export & Demo Buttons */}
+            {isTrained && (
+              <div className="flex gap-2 mt-2">
+                <button
+                  onClick={handleExportModel}
+                  disabled={isExporting}
+                  className="flex-1 px-4 py-2 rounded-lg font-bold text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 border border-[#39FF14]/40 text-[#39FF14] bg-[#39FF14]/10 hover:bg-[#39FF14]/20"
+                >
+                  {isExporting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      EXPORTING...
+                    </>
+                  ) : (
+                    <>
+                      <Download className="w-4 h-4" />
+                      EXPORT
+                    </>
+                  )}
+                </button>
+                <button
+                  onClick={handleDemo}
+                  disabled={isDemoing}
+                  className="flex-1 px-4 py-2 rounded-lg font-bold text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 border border-white/20 text-gray-300 bg-white/5 hover:bg-white/10"
+                >
+                  {isDemoing ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      LOADING...
+                    </>
+                  ) : (
+                    <>
+                      <FlaskConical className="w-4 h-4" />
+                      DEMO
+                    </>
+                  )}
+                </button>
+              </div>
+            )}
           </>
         ) : (
           <>
@@ -500,6 +578,46 @@ export function ControlsPanel({
                 "PREDICT"
               )}
             </button>
+
+            {/* Export & Demo Buttons */}
+            {isTrained && (
+              <div className="flex gap-2 mt-2">
+                <button
+                  onClick={handleExportModel}
+                  disabled={isExporting}
+                  className="flex-1 px-4 py-2 rounded-lg font-bold text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 border border-[#00F0FF]/40 text-[#00F0FF] bg-[#00F0FF]/10 hover:bg-[#00F0FF]/20"
+                >
+                  {isExporting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      EXPORTING...
+                    </>
+                  ) : (
+                    <>
+                      <Download className="w-4 h-4" />
+                      EXPORT
+                    </>
+                  )}
+                </button>
+                <button
+                  onClick={handleDemo}
+                  disabled={isDemoing}
+                  className="flex-1 px-4 py-2 rounded-lg font-bold text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 border border-white/20 text-gray-300 bg-white/5 hover:bg-white/10"
+                >
+                  {isDemoing ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      LOADING...
+                    </>
+                  ) : (
+                    <>
+                      <FlaskConical className="w-4 h-4" />
+                      DEMO
+                    </>
+                  )}
+                </button>
+              </div>
+            )}
           </>
         )}
 
