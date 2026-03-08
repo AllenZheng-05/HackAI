@@ -8,7 +8,7 @@ A web-based machine learning application that allows users to train and test mod
 
 - **Classification**: Train models to categorize data into different classes
 - **Regression**: Train models to predict continuous numerical values
-- **Feature Selection**: Choose which columns to include in training and remove data leakage columns
+- **Feature Selection**: Choose which columns to include in training
 - **Model Metrics**: View accuracy (classification) or R² score/MSE (regression)
 - **Feature Importance**: See which features contribute most to predictions
 
@@ -20,26 +20,14 @@ A web-based machine learning application that allows users to train and test mod
 
 ## Tech Stack
 
+- **Frontend**: React + TypeScript, Vite, Tailwind CSS
 - **Backend**: Flask (Python)
 - **ML Models**: scikit-learn (RandomForest)
 - **Deep Learning**: TensorFlow/Keras (MobileNetV2 for image features)
-- **Frontend**: Bootstrap 5
 
 ## Installation
 
-1. Clone the repository:
-
-   ```bash
-   git clone https://github.com/yourusername/HackAI.git
-   cd HackAI
-   ```
-
-2. Install dependencies:
-   ```bash
-   pip install flask pandas scikit-learn tensorflow pillow
-   ```
-
-## Running the App
+### Backend Setup
 
 1. Navigate to the backend directory:
 
@@ -47,11 +35,65 @@ A web-based machine learning application that allows users to train and test mod
    cd backend
    ```
 
-2. Start the Flask server:
+2. Create a virtual environment (recommended):
 
    ```bash
-   python app.py
+   python -m venv venv
+   source venv/bin/activate  # On Windows: venv\Scripts\activate
    ```
+
+3. Install dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+### Frontend Setup
+
+1. Navigate to the frontend directory:
+
+   ```bash
+   cd frontend
+   ```
+
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+
+## Running the App
+
+### Start Backend (Terminal 1)
+
+```bash
+cd backend
+python app.py
+```
+
+The backend API runs on `http://localhost:5000`
+
+### Start Frontend (Terminal 2)
+
+```bash
+cd frontend
+npm run dev
+```
+
+The frontend runs on `http://localhost:5173`
+
+## API Endpoints
+
+| Endpoint              | Method | Description                             |
+| --------------------- | ------ | --------------------------------------- |
+| `/train_csv`          | POST   | Train a model on CSV data               |
+| `/train_images`       | POST   | Train an image classifier               |
+| `/predict`            | POST   | Make predictions with trained model     |
+| `/metrics`            | GET    | Get model performance metrics           |
+| `/feature_importance` | GET    | Get feature importance scores           |
+| `/model_info`         | GET    | Get information about the trained model |
+
+```bash
+python app.py
+```
 
 3. Open your browser and go to `http://127.0.0.1:5000`
 

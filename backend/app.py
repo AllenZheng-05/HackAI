@@ -5,6 +5,7 @@ import pandas as pd
 import numpy as np
 
 from flask import Flask, render_template, request, jsonify
+from flask_cors import CORS
 
 from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
 from sklearn.model_selection import train_test_split
@@ -14,6 +15,7 @@ from tensorflow.keras.applications.mobilenet_v2 import MobileNetV2, preprocess_i
 from tensorflow.keras.preprocessing import image
 
 app = Flask(__name__)
+CORS(app)  # Enable CORS for all routes
 
 # GLOBAL MODEL STORE
 store = {
@@ -170,6 +172,15 @@ def train_images():
 
     X_features = np.array(X_features)
 
+    # Train/test split for evaluation
+    X_train, X_test, y_train, y_test = train_test_split(
+        X_features,
+        y_labels,
+        test_size=0.2,
+        random_state=42,
+        stratify=y_labels if len(set(y_labels)) > 1 else None
+    )
+
     # Extract model parameters from request with defaults
     model_params = {
         'n_estimators': int(request.form.get('n_estimators', 300)),
@@ -181,13 +192,23 @@ def train_images():
 
     model = RandomForestClassifier(**model_params)
 
-    model.fit(X_features, y_labels)
+    model.fit(X_train, y_train)
+
+    # Calculate accuracy
+    y_pred = model.predict(X_test)
+    acc = accuracy_score(y_test, y_pred)
+
+    store["metrics"] = {
+        "accuracy": float(acc),
+        "samples": len(y_labels)
+    }
 
     store.update({
         "mode": "Classification",
         "data_type": "image",
         "classes": class_names,
-        "model": model
+        "model": model,
+        "feature_importance": {}  # No feature importance for image models
     })
 
     return jsonify({
@@ -282,8 +303,12 @@ def metrics():
 @app.route('/feature_importance')
 def feature_importance():
 
-    if not store["feature_importance"]:
+    if not store["model"]:
         return jsonify({"error": "Model not trained"}), 400
+
+    # Return empty list for image models (no meaningful feature importance)
+    if not store["feature_importance"]:
+        return jsonify([])
 
     sorted_feats = sorted(
         store["feature_importance"].items(),
