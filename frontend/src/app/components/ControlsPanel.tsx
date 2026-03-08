@@ -1,27 +1,38 @@
-import { Check, AlertCircle, Loader2 } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
+import {
+  Check,
+  AlertCircle,
+  Loader2,
+  Upload,
+  Info,
+  ImageIcon,
+} from "lucide-react";
 import { ModelState } from "../App";
+import { predictCSV, predictImage } from "../services/api";
+
+type TrainingMode = "tabular" | "image";
 
 interface ControlsPanelProps {
   trees: number;
   maxDepth: number;
   minSamplesSplit: number;
-  featureSampling: string;
-  onTreesChange: (value: number) => void;
-  onMaxDepthChange: (value: number) => void;
-  onMinSamplesSplitChange: (value: number) => void;
-  onFeatureSamplingChange: (value: string) => void;
+  minSamplesLeaf: number;
+  trainingMode: TrainingMode;
   modelState: ModelState;
+}
+
+interface PredictionResult {
+  prediction: string;
+  confidence?: number;
+  probabilities?: number[];
 }
 
 export function ControlsPanel({
   trees,
   maxDepth,
   minSamplesSplit,
-  featureSampling,
-  onTreesChange,
-  onMaxDepthChange,
-  onMinSamplesSplitChange,
-  onFeatureSamplingChange,
+  minSamplesLeaf,
+  trainingMode,
   modelState,
 }: ControlsPanelProps) {
   const {
@@ -33,7 +44,136 @@ export function ControlsPanel({
     features,
     classes,
     error,
+    featureImportance,
   } = modelState;
+
+  // Prediction state
+  const [predictionResult, setPredictionResult] =
+    useState<PredictionResult | null>(null);
+  const [isPredicting, setIsPredicting] = useState(false);
+  const [predictionError, setPredictionError] = useState<string | null>(null);
+
+  // CSV form state - dynamic based on features
+  const [formData, setFormData] = useState<Record<string, string>>({});
+
+  // Image state
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
+
+  // Reset form when features change
+  useEffect(() => {
+    if (features.length > 0) {
+      const initialData: Record<string, string> = {};
+      features.forEach((f) => {
+        initialData[f] = "";
+      });
+      setFormData(initialData);
+    }
+  }, [features]);
+
+  // Reset prediction when mode changes
+  useEffect(() => {
+    setPredictionResult(null);
+    setPredictionError(null);
+  }, [trainingMode]);
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setImageFile(file);
+    setPredictionResult(null);
+    setPredictionError(null);
+
+    // Create preview
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      setImagePreview(e.target?.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handlePredictCSV = async () => {
+    if (!isTrained || dataType !== "csv") {
+      setPredictionError("Please train a CSV model first");
+      return;
+    }
+
+    // Validate form data
+    const emptyFields = features.filter((f) => !formData[f]?.trim());
+    if (emptyFields.length > 0) {
+      setPredictionError(`Please fill in: ${emptyFields.join(", ")}`);
+      return;
+    }
+
+    setIsPredicting(true);
+    setPredictionError(null);
+
+    try {
+      const result = await predictCSV(formData);
+      setPredictionResult({
+        prediction: result.prediction,
+        probabilities: result.probabilities,
+        confidence: result.probabilities
+          ? Math.max(...result.probabilities) * 100
+          : undefined,
+      });
+    } catch (err) {
+      setPredictionError(
+        err instanceof Error ? err.message : "Prediction failed",
+      );
+    } finally {
+      setIsPredicting(false);
+    }
+  };
+
+  const handlePredictImage = async () => {
+    if (!isTrained || dataType !== "image") {
+      setPredictionError("Please train an image model first");
+      return;
+    }
+
+    if (!imageFile) {
+      setPredictionError("Please upload an image");
+      return;
+    }
+
+    setIsPredicting(true);
+    setPredictionError(null);
+
+    try {
+      const result = await predictImage(imageFile);
+      setPredictionResult({
+        prediction: result.prediction,
+      });
+    } catch (err) {
+      setPredictionError(
+        err instanceof Error ? err.message : "Prediction failed",
+      );
+    } finally {
+      setIsPredicting(false);
+    }
+  };
+
+  const isCSVMode = trainingMode === "tabular";
+  const canPredict =
+    isTrained && (isCSVMode ? dataType === "csv" : dataType === "image");
+
+  // Process feature importance data - take top 6 and normalize
+  const processedFeatures =
+    featureImportance.length > 0
+      ? featureImportance.slice(0, 6).map(([name, value]) => ({
+          name: name.length > 15 ? name.substring(0, 12) + "..." : name,
+          value: value,
+        }))
+      : [];
+
+  // Find max for normalization
+  const maxImportance =
+    processedFeatures.length > 0
+      ? Math.max(...processedFeatures.map((f) => f.value))
+      : 1;
 
   // Calculate accuracy for display
   const accuracy = metrics?.accuracy ?? metrics?.r2_score ?? 0;
@@ -190,93 +330,242 @@ export function ControlsPanel({
         )}
       </div>
 
-      {/* Parameters Card */}
+      {/* Feature Importance */}
       <div className="p-4 rounded-xl bg-white/5 backdrop-blur-sm border border-white/10">
-        <h3 className="text-xs font-semibold text-gray-400 mb-4 uppercase">
-          Parameters
+        <h3 className="text-xs font-semibold text-gray-400 mb-3 uppercase">
+          {dataType === "image" ? "Image Classification" : "Feature Importance"}
+        </h3>
+        {dataType === "image" && isTrained ? (
+          <p className="text-sm text-gray-300">
+            Using MobileNetV2 feature extraction (1280 features)
+          </p>
+        ) : processedFeatures.length > 0 ? (
+          <div className="space-y-2">
+            {processedFeatures.map((feature) => (
+              <div key={feature.name} className="flex items-center gap-3">
+                <span
+                  className="text-xs text-gray-400 w-24 truncate"
+                  title={feature.name}
+                >
+                  {feature.name}:
+                </span>
+                <div className="flex-1 h-2 rounded-full bg-white/10 overflow-hidden">
+                  <div
+                    className="h-full bg-gradient-to-r from-[#39FF14] to-[#2acc0f] shadow-[0_0_10px_rgba(57,255,20,0.5)]"
+                    style={{
+                      width: `${(feature.value / maxImportance) * 100}%`,
+                    }}
+                  />
+                </div>
+                <span className="text-xs text-white font-semibold w-12 text-right">
+                  {feature.value.toFixed(3)}
+                </span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-gray-500">
+            Train a model to see feature importance
+          </p>
+        )}
+      </div>
+
+      {/* Test Prediction */}
+      <div className="p-4 rounded-xl bg-white/5 backdrop-blur-sm border border-white/10">
+        <h3 className="text-xs font-semibold text-gray-400 mb-3 uppercase">
+          Test Prediction
         </h3>
 
-        <div className="space-y-4">
-          {/* Trees Slider */}
-          <div>
-            <div className="flex justify-between mb-2">
-              <label className="text-sm text-gray-300">Trees</label>
-              <span className="text-sm text-white font-semibold">{trees}</span>
-            </div>
-            <input
-              type="range"
-              min="10"
-              max="500"
-              value={trees}
-              onChange={(e) => onTreesChange(Number(e.target.value))}
-              className="w-full h-2 rounded-full appearance-none bg-white/10 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[#39FF14] [&::-webkit-slider-thumb]:shadow-[0_0_10px_rgba(57,255,20,0.8)] [&::-webkit-slider-thumb]:cursor-pointer"
-            />
-            <div className="flex justify-between text-xs text-gray-500 mt-1">
-              <span>10</span>
-              <span>500</span>
-            </div>
+        {!isTrained && (
+          <div className="flex items-center gap-2 p-2 rounded-lg bg-yellow-500/10 border border-yellow-500/30 mb-3">
+            <AlertCircle className="w-4 h-4 text-yellow-500" />
+            <span className="text-xs text-yellow-500">Train a model first</span>
           </div>
+        )}
 
-          {/* Max Depth Slider */}
-          <div>
-            <div className="flex justify-between mb-2">
-              <label className="text-sm text-gray-300">Max depth</label>
-              <span className="text-sm text-white font-semibold">
-                {maxDepth}
-              </span>
-            </div>
-            <input
-              type="range"
-              min="3"
-              max="30"
-              value={maxDepth}
-              onChange={(e) => onMaxDepthChange(Number(e.target.value))}
-              className="w-full h-2 rounded-full appearance-none bg-white/10 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[#39FF14] [&::-webkit-slider-thumb]:shadow-[0_0_10px_rgba(57,255,20,0.8)] [&::-webkit-slider-thumb]:cursor-pointer"
-            />
-            <div className="flex justify-between text-xs text-gray-500 mt-1">
-              <span>3</span>
-              <span>30</span>
-            </div>
+        {isTrained && !canPredict && (
+          <div className="flex items-center gap-2 p-2 rounded-lg bg-yellow-500/10 border border-yellow-500/30 mb-3">
+            <AlertCircle className="w-4 h-4 text-yellow-500" />
+            <span className="text-xs text-yellow-500">
+              Model is for {dataType === "csv" ? "tabular" : "image"} data
+            </span>
           </div>
+        )}
 
-          {/* Min Samples Split Slider */}
-          <div>
-            <div className="flex justify-between mb-2">
-              <label className="text-sm text-gray-300">Min samples split</label>
-              <span className="text-sm text-white font-semibold">
-                {minSamplesSplit}
-              </span>
-            </div>
-            <input
-              type="range"
-              min="2"
-              max="20"
-              value={minSamplesSplit}
-              onChange={(e) => onMinSamplesSplitChange(Number(e.target.value))}
-              className="w-full h-2 rounded-full appearance-none bg-white/10 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[#39FF14] [&::-webkit-slider-thumb]:shadow-[0_0_10px_rgba(57,255,20,0.8)] [&::-webkit-slider-thumb]:cursor-pointer"
-            />
-            <div className="flex justify-between text-xs text-gray-500 mt-1">
-              <span>2</span>
-              <span>20</span>
-            </div>
-          </div>
+        {isCSVMode ? (
+          <>
+            {/* Dynamic Form Fields */}
+            {features.length > 0 ? (
+              <div className="space-y-2 mb-3">
+                {features.map((feature) => (
+                  <div key={feature}>
+                    <label
+                      className="text-xs text-gray-400 mb-1 block truncate"
+                      title={feature}
+                    >
+                      {feature}
+                    </label>
+                    <input
+                      type="text"
+                      value={formData[feature] || ""}
+                      onChange={(e) =>
+                        setFormData({ ...formData, [feature]: e.target.value })
+                      }
+                      disabled={!canPredict || isPredicting}
+                      placeholder="Value"
+                      className="w-full px-2 py-1.5 rounded-lg bg-white/10 border border-white/20 text-white focus:outline-none focus:ring-2 focus:ring-[#39FF14] disabled:opacity-50 text-sm"
+                    />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-gray-400 text-xs mb-3">
+                Train a model to see input fields
+              </p>
+            )}
 
-          {/* Feature Sampling Dropdown */}
-          <div>
-            <label className="text-sm text-gray-300 mb-2 block">
-              Feature sampling
-            </label>
-            <select
-              value={featureSampling}
-              onChange={(e) => onFeatureSamplingChange(e.target.value)}
-              className="w-full px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-white focus:outline-none focus:ring-2 focus:ring-[#39FF14]"
+            {/* Predict Button */}
+            <button
+              onClick={handlePredictCSV}
+              disabled={!canPredict || isPredicting}
+              className="w-full px-4 py-2 rounded-lg bg-[#39FF14] hover:bg-[#39FF14]/90 text-black font-bold text-sm shadow-[0_0_20px_rgba(57,255,20,0.4)] hover:shadow-[0_0_30px_rgba(57,255,20,0.6)] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
-              <option className="text-black bg-white">sqrt</option>
-              <option className="text-black bg-white">log2</option>
-              <option className="text-black bg-white">auto</option>
-            </select>
+              {isPredicting ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  PREDICTING...
+                </>
+              ) : (
+                "PREDICT"
+              )}
+            </button>
+          </>
+        ) : (
+          <>
+            {/* Image Upload */}
+            <div className="mb-3">
+              <input
+                type="file"
+                ref={imageInputRef}
+                accept="image/*"
+                onChange={handleImageUpload}
+                className="hidden"
+              />
+              <button
+                onClick={() => imageInputRef.current?.click()}
+                disabled={!canPredict || isPredicting}
+                className="w-full px-3 py-2 rounded-lg bg-white/10 hover:bg-white/15 border border-white/20 text-white font-medium flex items-center justify-center gap-2 transition-all disabled:opacity-50 text-sm"
+              >
+                <Upload className="w-4 h-4" />
+                Choose Image
+              </button>
+
+              {/* Image Preview */}
+              {imagePreview && (
+                <div className="mt-2 w-full h-24 rounded-lg bg-white/5 border border-white/10 overflow-hidden">
+                  <img
+                    src={imagePreview}
+                    alt="Preview"
+                    className="w-full h-full object-contain"
+                  />
+                </div>
+              )}
+
+              {imageFile && (
+                <p className="text-xs text-gray-400 mt-1 truncate">
+                  {imageFile.name}
+                </p>
+              )}
+            </div>
+
+            {/* Available Classes */}
+            {classes.length > 0 && (
+              <p className="text-xs text-gray-400 mb-3">
+                Classes: {classes.join(", ")}
+              </p>
+            )}
+
+            {/* Predict Button */}
+            <button
+              onClick={handlePredictImage}
+              disabled={!canPredict || isPredicting || !imageFile}
+              className="w-full px-4 py-2 rounded-lg bg-[#00F0FF] hover:bg-[#00F0FF]/90 text-black font-bold text-sm shadow-[0_0_20px_rgba(0,240,255,0.4)] hover:shadow-[0_0_30px_rgba(0,240,255,0.6)] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            >
+              {isPredicting ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  PREDICTING...
+                </>
+              ) : (
+                "PREDICT"
+              )}
+            </button>
+          </>
+        )}
+
+        {/* Error Display */}
+        {predictionError && (
+          <div className="mt-3 p-2 rounded-lg bg-red-500/10 border border-red-500/30 flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0" />
+            <span className="text-xs text-red-500">{predictionError}</span>
           </div>
-        </div>
+        )}
+
+        {/* Prediction Results */}
+        {predictionResult && (
+          <div
+            className={`mt-3 p-3 rounded-lg border ${
+              isCSVMode
+                ? "bg-gradient-to-br from-[#39FF14]/10 to-[#39FF14]/5 border-[#39FF14]/30"
+                : "bg-gradient-to-br from-[#00F0FF]/10 to-[#00F0FF]/5 border-[#00F0FF]/30"
+            }`}
+          >
+            <div className="flex items-start justify-between mb-2">
+              <div>
+                <h4 className="text-sm font-semibold text-white">
+                  {predictionResult.prediction}
+                </h4>
+                {predictionResult.confidence !== undefined && (
+                  <p className="text-xs text-gray-300">
+                    {predictionResult.confidence.toFixed(1)}% confidence
+                  </p>
+                )}
+              </div>
+              {predictionResult.probabilities &&
+                predictionResult.probabilities.length > 0 && (
+                  <button className="p-1 hover:bg-white/10 rounded transition-colors group relative">
+                    <Info className="w-4 h-4 text-gray-400" />
+                    <div className="absolute right-0 top-full mt-1 w-48 p-2 rounded-lg bg-black/90 border border-white/20 text-xs text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                      <div className="font-semibold text-white mb-1">
+                        Class Probabilities:
+                      </div>
+                      <div className="space-y-0.5">
+                        {predictionResult.probabilities.map((prob, idx) => (
+                          <div key={idx}>
+                            Class {idx}: {(prob * 100).toFixed(1)}%
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </button>
+                )}
+            </div>
+
+            {/* Confidence Bar */}
+            {predictionResult.confidence !== undefined && (
+              <div className="relative h-2 rounded-full bg-white/10 overflow-hidden">
+                <div
+                  className={`h-full transition-all duration-1000 ${
+                    isCSVMode
+                      ? "bg-gradient-to-r from-[#39FF14] to-[#2acc0f]"
+                      : "bg-gradient-to-r from-[#00F0FF] to-[#00c4cc]"
+                  }`}
+                  style={{ width: `${predictionResult.confidence}%` }}
+                />
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

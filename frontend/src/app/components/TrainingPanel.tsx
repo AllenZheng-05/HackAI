@@ -12,7 +12,12 @@ interface TrainingPanelProps {
     trees: number;
     maxDepth: number;
     minSamplesSplit: number;
+    minSamplesLeaf: number;
   };
+  onTreesChange: (value: number) => void;
+  onMaxDepthChange: (value: number) => void;
+  onMinSamplesSplitChange: (value: number) => void;
+  onMinSamplesLeafChange: (value: number) => void;
   isTraining: boolean;
   onTrainingStart: () => void;
   onTrainingComplete: () => void;
@@ -23,6 +28,10 @@ export function TrainingPanel({
   mode,
   onModeChange,
   modelParams,
+  onTreesChange,
+  onMaxDepthChange,
+  onMinSamplesSplitChange,
+  onMinSamplesLeafChange,
   isTraining,
   onTrainingStart,
   onTrainingComplete,
@@ -100,6 +109,7 @@ export function TrainingPanel({
         n_estimators: modelParams.trees,
         max_depth: modelParams.maxDepth,
         min_samples_split: modelParams.minSamplesSplit,
+        min_samples_leaf: modelParams.minSamplesLeaf,
       });
       onTrainingComplete();
     } catch (error) {
@@ -123,6 +133,7 @@ export function TrainingPanel({
         n_estimators: modelParams.trees,
         max_depth: modelParams.maxDepth,
         min_samples_split: modelParams.minSamplesSplit,
+        min_samples_leaf: modelParams.minSamplesLeaf,
       });
       onTrainingComplete();
     } catch (error) {
@@ -230,7 +241,11 @@ export function TrainingPanel({
                   className="w-full px-4 py-2 rounded-lg bg-white/10 border border-white/20 text-white focus:outline-none focus:ring-2 focus:ring-[#39FF14] disabled:opacity-50"
                 >
                   {columns.map((column) => (
-                    <option key={column} value={column}>
+                    <option
+                      className="text-black bg-white"
+                      key={column}
+                      value={column}
+                    >
                       {column}
                     </option>
                   ))}
@@ -262,6 +277,111 @@ export function TrainingPanel({
               >
                 Regression
               </button>
+            </div>
+
+            {/* Parameters Card */}
+            <div className="p-4 rounded-xl bg-white/5 backdrop-blur-sm border border-white/10">
+              <h3 className="text-xs font-semibold text-gray-400 mb-4 uppercase">
+                Parameters
+              </h3>
+
+              <div className="space-y-4">
+                {/* Trees Slider */}
+                <div>
+                  <div className="flex justify-between mb-2">
+                    <label className="text-sm text-gray-300">Trees</label>
+                    <span className="text-sm text-white font-semibold">
+                      {modelParams.trees}
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min="10"
+                    max="500"
+                    value={modelParams.trees}
+                    onChange={(e) => onTreesChange(Number(e.target.value))}
+                    className="w-full h-2 rounded-full appearance-none bg-white/10 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[#39FF14] [&::-webkit-slider-thumb]:shadow-[0_0_10px_rgba(57,255,20,0.8)] [&::-webkit-slider-thumb]:cursor-pointer"
+                  />
+                  <div className="flex justify-between text-xs text-gray-500 mt-1">
+                    <span>10</span>
+                    <span>500</span>
+                  </div>
+                </div>
+
+                {/* Max Depth Slider */}
+                <div>
+                  <div className="flex justify-between mb-2">
+                    <label className="text-sm text-gray-300">Max depth</label>
+                    <span className="text-sm text-white font-semibold">
+                      {modelParams.maxDepth}
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min="3"
+                    max="30"
+                    value={modelParams.maxDepth}
+                    onChange={(e) => onMaxDepthChange(Number(e.target.value))}
+                    className="w-full h-2 rounded-full appearance-none bg-white/10 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[#39FF14] [&::-webkit-slider-thumb]:shadow-[0_0_10px_rgba(57,255,20,0.8)] [&::-webkit-slider-thumb]:cursor-pointer"
+                  />
+                  <div className="flex justify-between text-xs text-gray-500 mt-1">
+                    <span>3</span>
+                    <span>30</span>
+                  </div>
+                </div>
+
+                {/* Min Samples Split Slider */}
+                <div>
+                  <div className="flex justify-between mb-2">
+                    <label className="text-sm text-gray-300">
+                      Min samples split
+                    </label>
+                    <span className="text-sm text-white font-semibold">
+                      {modelParams.minSamplesSplit}
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min="2"
+                    max="20"
+                    value={modelParams.minSamplesSplit}
+                    onChange={(e) =>
+                      onMinSamplesSplitChange(Number(e.target.value))
+                    }
+                    className="w-full h-2 rounded-full appearance-none bg-white/10 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[#39FF14] [&::-webkit-slider-thumb]:shadow-[0_0_10px_rgba(57,255,20,0.8)] [&::-webkit-slider-thumb]:cursor-pointer"
+                  />
+                  <div className="flex justify-between text-xs text-gray-500 mt-1">
+                    <span>2</span>
+                    <span>20</span>
+                  </div>
+                </div>
+
+                {/* Min Samples Leaf Slider */}
+                <div>
+                  <div className="flex justify-between mb-2">
+                    <label className="text-sm text-gray-300">
+                      Min samples leaf
+                    </label>
+                    <span className="text-sm text-white font-semibold">
+                      {modelParams.minSamplesLeaf}
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min="1"
+                    max="10"
+                    value={modelParams.minSamplesLeaf}
+                    onChange={(e) =>
+                      onMinSamplesLeafChange(Number(e.target.value))
+                    }
+                    className="w-full h-2 rounded-full appearance-none bg-white/10 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[#39FF14] [&::-webkit-slider-thumb]:shadow-[0_0_10px_rgba(57,255,20,0.8)] [&::-webkit-slider-thumb]:cursor-pointer"
+                  />
+                  <div className="flex justify-between text-xs text-gray-500 mt-1">
+                    <span>1</span>
+                    <span>10</span>
+                  </div>
+                </div>
+              </div>
             </div>
 
             {/* Train Button */}
@@ -335,6 +455,111 @@ export function TrainingPanel({
               <p className="mt-3 text-xs text-gray-400 italic">
                 Classes extracted from zip filenames
               </p>
+            </div>
+
+            {/* Parameters Card */}
+            <div className="p-4 rounded-xl bg-white/5 backdrop-blur-sm border border-white/10">
+              <h3 className="text-xs font-semibold text-gray-400 mb-4 uppercase">
+                Parameters
+              </h3>
+
+              <div className="space-y-4">
+                {/* Trees Slider */}
+                <div>
+                  <div className="flex justify-between mb-2">
+                    <label className="text-sm text-gray-300">Trees</label>
+                    <span className="text-sm text-white font-semibold">
+                      {modelParams.trees}
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min="10"
+                    max="500"
+                    value={modelParams.trees}
+                    onChange={(e) => onTreesChange(Number(e.target.value))}
+                    className="w-full h-2 rounded-full appearance-none bg-white/10 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[#00F0FF] [&::-webkit-slider-thumb]:shadow-[0_0_10px_rgba(0,240,255,0.8)] [&::-webkit-slider-thumb]:cursor-pointer"
+                  />
+                  <div className="flex justify-between text-xs text-gray-500 mt-1">
+                    <span>10</span>
+                    <span>500</span>
+                  </div>
+                </div>
+
+                {/* Max Depth Slider */}
+                <div>
+                  <div className="flex justify-between mb-2">
+                    <label className="text-sm text-gray-300">Max depth</label>
+                    <span className="text-sm text-white font-semibold">
+                      {modelParams.maxDepth}
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min="3"
+                    max="30"
+                    value={modelParams.maxDepth}
+                    onChange={(e) => onMaxDepthChange(Number(e.target.value))}
+                    className="w-full h-2 rounded-full appearance-none bg-white/10 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[#00F0FF] [&::-webkit-slider-thumb]:shadow-[0_0_10px_rgba(0,240,255,0.8)] [&::-webkit-slider-thumb]:cursor-pointer"
+                  />
+                  <div className="flex justify-between text-xs text-gray-500 mt-1">
+                    <span>3</span>
+                    <span>30</span>
+                  </div>
+                </div>
+
+                {/* Min Samples Split Slider */}
+                <div>
+                  <div className="flex justify-between mb-2">
+                    <label className="text-sm text-gray-300">
+                      Min samples split
+                    </label>
+                    <span className="text-sm text-white font-semibold">
+                      {modelParams.minSamplesSplit}
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min="2"
+                    max="20"
+                    value={modelParams.minSamplesSplit}
+                    onChange={(e) =>
+                      onMinSamplesSplitChange(Number(e.target.value))
+                    }
+                    className="w-full h-2 rounded-full appearance-none bg-white/10 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[#00F0FF] [&::-webkit-slider-thumb]:shadow-[0_0_10px_rgba(0,240,255,0.8)] [&::-webkit-slider-thumb]:cursor-pointer"
+                  />
+                  <div className="flex justify-between text-xs text-gray-500 mt-1">
+                    <span>2</span>
+                    <span>20</span>
+                  </div>
+                </div>
+
+                {/* Min Samples Leaf Slider */}
+                <div>
+                  <div className="flex justify-between mb-2">
+                    <label className="text-sm text-gray-300">
+                      Min samples leaf
+                    </label>
+                    <span className="text-sm text-white font-semibold">
+                      {modelParams.minSamplesLeaf}
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min="1"
+                    max="10"
+                    value={modelParams.minSamplesLeaf}
+                    onChange={(e) =>
+                      onMinSamplesLeafChange(Number(e.target.value))
+                    }
+                    className="w-full h-2 rounded-full appearance-none bg-white/10 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[#00F0FF] [&::-webkit-slider-thumb]:shadow-[0_0_10px_rgba(0,240,255,0.8)] [&::-webkit-slider-thumb]:cursor-pointer"
+                  />
+                  <div className="flex justify-between text-xs text-gray-500 mt-1">
+                    <span>1</span>
+                    <span>10</span>
+                  </div>
+                </div>
+              </div>
             </div>
 
             {/* Train Button */}

@@ -5,7 +5,7 @@ interface ModelVisualizationProps {
   trees: number;
   maxDepth: number;
   minSamplesSplit: number;
-  featureSampling: string;
+  minSamplesLeaf: number;
   modelState: ModelState;
 }
 
@@ -13,11 +13,11 @@ export function ModelVisualization({
   trees,
   maxDepth,
   minSamplesSplit,
-  featureSampling,
+  minSamplesLeaf,
   modelState,
 }: ModelVisualizationProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const { isTrained, isTraining, featureImportance, dataType } = modelState;
+  const { isTrained, isTraining } = modelState;
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -108,9 +108,8 @@ export function ModelVisualization({
         });
       });
 
-      // Draw nodes with size affected by featureSampling
-      const baseSize =
-        featureSampling === "sqrt" ? 12 : featureSampling === "log2" ? 10 : 14;
+      // Draw nodes with size affected by minSamplesLeaf
+      const baseSize = Math.max(8, 14 - minSamplesLeaf);
 
       nodes.forEach((node, i) => {
         const pulse = Math.sin(time + node.pulse) * 0.1 + 0.9; // Subtler pulsing
@@ -193,22 +192,7 @@ export function ModelVisualization({
     return () => {
       cancelAnimationFrame(animationFrame);
     };
-  }, [trees, maxDepth, minSamplesSplit, featureSampling]);
-
-  // Process feature importance data - take top 6 and normalize
-  const processedFeatures =
-    featureImportance.length > 0
-      ? featureImportance.slice(0, 6).map(([name, value]) => ({
-          name: name.length > 15 ? name.substring(0, 12) + "..." : name,
-          value: value,
-        }))
-      : [];
-
-  // Find max for normalization
-  const maxImportance =
-    processedFeatures.length > 0
-      ? Math.max(...processedFeatures.map((f) => f.value))
-      : 1;
+  }, [trees, maxDepth, minSamplesSplit, minSamplesLeaf]);
 
   return (
     <div className="h-full flex flex-col">
@@ -255,46 +239,6 @@ export function ModelVisualization({
           className="w-full h-full"
           style={{ width: "100%", height: "100%" }}
         />
-      </div>
-
-      {/* Feature Importance */}
-      <div className="mt-4 p-4 rounded-xl bg-white/5 backdrop-blur-sm border border-white/10">
-        <h3 className="text-xs font-semibold text-gray-400 mb-3 uppercase">
-          {dataType === "image" ? "Image Classification" : "Feature Importance"}
-        </h3>
-        {dataType === "image" && isTrained ? (
-          <p className="text-sm text-gray-300">
-            Using MobileNetV2 feature extraction (1280 features)
-          </p>
-        ) : processedFeatures.length > 0 ? (
-          <div className="space-y-2">
-            {processedFeatures.map((feature) => (
-              <div key={feature.name} className="flex items-center gap-3">
-                <span
-                  className="text-xs text-gray-400 w-24 truncate"
-                  title={feature.name}
-                >
-                  {feature.name}:
-                </span>
-                <div className="flex-1 h-2 rounded-full bg-white/10 overflow-hidden">
-                  <div
-                    className="h-full bg-gradient-to-r from-[#39FF14] to-[#2acc0f] shadow-[0_0_10px_rgba(57,255,20,0.5)]"
-                    style={{
-                      width: `${(feature.value / maxImportance) * 100}%`,
-                    }}
-                  />
-                </div>
-                <span className="text-xs text-white font-semibold w-12 text-right">
-                  {feature.value.toFixed(3)}
-                </span>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="text-sm text-gray-500">
-            Train a model to see feature importance
-          </p>
-        )}
       </div>
     </div>
   );

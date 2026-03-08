@@ -1,9 +1,8 @@
 import { useState, useCallback } from "react";
 import { Header } from "./components/Header";
 import { TrainingPanel } from "./components/TrainingPanel";
-import { ModelVisualization } from "./components/ModelVisualization";
+import { RandomForestVisualization } from "./components/RandomForestVisualization";
 import { ControlsPanel } from "./components/ControlsPanel";
-import { PredictionPanel } from "./components/PredictionPanel";
 import {
   getMetrics,
   getFeatureImportance,
@@ -31,7 +30,7 @@ export default function App() {
   const [trees, setTrees] = useState(100);
   const [maxDepth, setMaxDepth] = useState(10);
   const [minSamplesSplit, setMinSamplesSplit] = useState(2);
-  const [featureSampling, setFeatureSampling] = useState("sqrt");
+  const [minSamplesLeaf, setMinSamplesLeaf] = useState(1);
 
   const [modelState, setModelState] = useState<ModelState>({
     isTrained: false,
@@ -96,7 +95,11 @@ export default function App() {
           <TrainingPanel
             mode={trainingMode}
             onModeChange={setTrainingMode}
-            modelParams={{ trees, maxDepth, minSamplesSplit }}
+            modelParams={{ trees, maxDepth, minSamplesSplit, minSamplesLeaf }}
+            onTreesChange={setTrees}
+            onMaxDepthChange={setMaxDepth}
+            onMinSamplesSplitChange={setMinSamplesSplit}
+            onMinSamplesLeafChange={setMinSamplesLeaf}
             isTraining={modelState.isTraining}
             onTrainingStart={() => setTrainingStatus(true)}
             onTrainingComplete={onTrainingComplete}
@@ -106,11 +109,11 @@ export default function App() {
 
         {/* Middle Panel - Model Visualization (45%) */}
         <div className="w-[45%]">
-          <ModelVisualization
+          <RandomForestVisualization
             trees={trees}
             maxDepth={maxDepth}
             minSamplesSplit={minSamplesSplit}
-            featureSampling={featureSampling}
+            minSamplesLeaf={minSamplesLeaf}
             modelState={modelState}
           />
         </div>
@@ -121,19 +124,11 @@ export default function App() {
             trees={trees}
             maxDepth={maxDepth}
             minSamplesSplit={minSamplesSplit}
-            featureSampling={featureSampling}
-            onTreesChange={setTrees}
-            onMaxDepthChange={setMaxDepth}
-            onMinSamplesSplitChange={setMinSamplesSplit}
-            onFeatureSamplingChange={setFeatureSampling}
+            minSamplesLeaf={minSamplesLeaf}
+            trainingMode={trainingMode}
             modelState={modelState}
           />
         </div>
-      </div>
-
-      {/* Bottom Panel - Test Prediction */}
-      <div className="px-6 pb-6">
-        <PredictionPanel mode={trainingMode} modelState={modelState} />
       </div>
     </div>
   );
