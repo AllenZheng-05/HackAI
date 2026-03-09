@@ -1,4 +1,4 @@
-# HackAI - Universal Teachable Machine
+# HackAI - MindCraft
 
 A web-based machine learning application that allows users to train and test models on both tabular (CSV) data and images without writing any code.
 
